@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Chamada por Dia</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            text-align: center;
+        }
+        table {
+            width: 60%;
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+        button {
+            padding: 5px 10px;
+        }
+        .present {
+            background-color: #c8e6c9;
+        }
+        .absent {
+            background-color: #ffcdd2;
+        }
+        .date-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lista de Chamada</h1>
+
+    <div class="date-container">
+        <label for="data-chamada">Selecione a data:</label>
+        <input type="date" id="data-chamada">
+        <button onclick="iniciarChamada()">Iniciar Chamada</button>
+    </div>
+
+    <table id="chamada" style="display: none;">
+        <thead>
+            <tr>
+                <th>Aluno</th>
+                <th>RA</th>
+                <th>Status</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody id="lista-alunos">
+        </tbody>
+    </table>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "API_KEY_AQUI",
+            authDomain: "bi-rakaton.firebaseapp.com",
+            projectId: "bi-rakaton",
+            storageBucket: "bi-rakaton.appspot.com",
+            messagingSenderId: "803931895884",
+            appId: "1:803931895884:web:8a7b8f880e2a6476b3dce9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        async function buscarAlunos() {
+            const querySnapshot = await getDocs(collection(db, "Users"));
+            const alunos = [];
+            querySnapshot.forEach((doc) => {
+                alunos.push({ id: doc.id, ...doc.data() });
+            });
+            return alunos;
+        }
+
+        window.buscarAlunos = buscarAlunos;
+    </script>
+
+    <script>
+        let chamadasPorDia = {};
+
+        async function iniciarChamada() {
+            const dataChamada = document.getElementById('data-chamada').value;
+
+            if (!dataChamada) {
+                alert('Por favor, selecione uma data.');
+                return;
+            }
+
+            const alunos = await buscarAlunos();
+            if (alunos.length === 0) {
+                alert("Nenhum aluno encontrado.");
+                return;
+            }
+
+            if (!chamadasPorDia[dataChamada]) {
+                chamadasPorDia[dataChamada] = {};
+                alunos.forEach((aluno) => {
+                    chamadasPorDia[dataChamada][aluno.id] = "Ausente";
+                });
+            }
+
+            document.getElementById('chamada').style.display = '';
+            preencherTabela(alunos, dataChamada);
+        }
+
+        function preencherTabela(alunos, dataChamada) {
+            const tabela = document.getElementById('lista-alunos');
+            tabela.innerHTML = "";
+
+            alunos.forEach((aluno, index) => {
+                const tr = document.createElement('tr');
+
+                const tdNome = document.createElement('td');
+                tdNome.textContent = aluno.Name;
+                tr.appendChild(tdNome);
+
+                const tdRA = document.createElement('td');
+                tdRA.textContent = aluno.RA;
+                tr.appendChild(tdRA);
+
+                const tdStatus = document.createElement('td');
+                tdStatus.id = `status-aluno-${aluno.id}`;
+                tdStatus.textContent = chamadasPorDia[dataChamada][aluno.id];
+                tdStatus.className = chamadasPorDia[dataChamada][aluno.id] === "Presente" ? "present" : "absent";
+                tr.appendChild(tdStatus);
+
+                const tdAcao = document.createElement('td');
+                const button = document.createElement('button');
+                button.textContent = "Marcar Presença";
+                button.onclick = () => marcarPresenca(aluno.id, dataChamada);
+                tdAcao.appendChild(button);
+                tr.appendChild(tdAcao);
+
+                tabela.appendChild(tr);
+            });
+        }
+
+        function marcarPresenca(alunoId, dataChamada) {
+            const statusAtual = chamadasPorDia[dataChamada][alunoId];
+            const novoStatus = statusAtual === "Ausente" ? "Presente" : "Ausente";
+
+            chamadasPorDia[dataChamada][alunoId] = novoStatus;
+
+            document.getElementById(`status-aluno-${alunoId}`).textContent = novoStatus;
+            document.getElementById(`status-aluno-${alunoId}`).className = novoStatus === "Presente" ? "present" : "absent";
+        }
+    </script>
+</body>
+</html>
